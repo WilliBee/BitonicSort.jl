@@ -52,8 +52,8 @@ function bitonic_sort!(
     end
 
     # Select appropriate kernel based on max_len
-    if max_len ∉ (128, 256, 512, 1024, 2048, 4096)
-        error("Bitonic sort requires max_len ∈ {128, 256, 512, 1024, 2048, 4096}, got $max_len")
+    if max_len ∉ (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
+        error("Bitonic sort requires max_len ∈ {2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096}, got $max_len")
     end
 
     # Launch kernel with max_len parameter
