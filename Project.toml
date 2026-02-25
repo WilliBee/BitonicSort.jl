@@ -1,0 +1,28 @@
+name = "BitonicSort"
+uuid = "046256cb-d774-41de-a243-db2e1ebe8eb7"
+version = "0.0.1"
+authors = ["William BENG <github.com/WilliBee> and contributors"]
+
+[deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+KernelIntrinsics = "f9588fbb-d238-4998-b15a-468e8766d49a"
+
+[weakdeps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
+[sources]
+KernelIntrinsics = {url = "https://github.com/epilliat/KernelIntrinsics.jl.git"}
+
+[compat]
+Adapt = "4.4.0"
+CUDA = "5.9.6"
+KernelAbstractions = "0.9.40"
+KernelIntrinsics = "0.1.4"
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test", "CUDA"]
