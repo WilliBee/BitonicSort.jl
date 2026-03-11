@@ -1,4 +1,3 @@
-
 """
     bitonic_sort!(val_in, idx_in; ascend=true)
 
@@ -47,8 +46,10 @@ function bitonic_sort!(
         max_len = k
     else
         # Multiple tasks: validate and extract parameters
-        num_tasks = length(task_offsets) - 1
-        max_len = maximum(diff(task_offsets)) |> Int
+        # Convert to CPU array first to avoid expensive GPU operations
+        task_offsets_cpu = adapt(Array, task_offsets)
+        num_tasks = length(task_offsets_cpu) - 1
+        max_len = maximum(diff(task_offsets_cpu)) |> Int
     end
 
     @assert max_len <= 4096 "Input size > 4096 unsupported"
@@ -80,10 +81,8 @@ function bitonic_sort!(
         copyto!(val_padded, 1, val_in, 1, k)
         copyto!(idx_padded, 1, idx_in, 1, k)
 
-        # Adjust task_offsets for padding
-        new_offsets = similar(task_offsets, length(task_offsets) + 1)
-        copyto!(new_offsets, 1, task_offsets, 1, length(task_offsets))
-        new_offsets[end] = padded_size
+        # Adjust task_offsets for padding (construct on CPU to avoid scalar indexing)
+        new_offsets = adapt(backend, vcat(Array(task_offsets), padded_size))
 
         # Launch kernel with padded size
         threads = padded_size in (2048, 4096) ? 1024 : padded_size
