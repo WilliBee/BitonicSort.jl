@@ -2,8 +2,24 @@ using BitonicSort
 using Test
 using Adapt
 
-@testset "BitonicSort.jl" begin
-    # Write your tests here.
+const BACKEND = get(ENV, "BACKEND") do
+    error("Usage: BACKEND=[cuda|metal] julia --project")
 end
 
-include("cuda.jl")
+if BACKEND == "CUDA"
+    using CUDA
+    const backend = CUDABackend()
+
+    @testset "CUDA" begin
+        include("correctness.jl")
+    end
+elseif BACKEND == "Metal"
+    using Metal
+    const backend = MetalBackend()
+
+    @testset "Metal" begin
+        include("correctness.jl")
+    end
+else
+    error("Usage: BACKEND=[cuda|metal] julia --project")
+end
