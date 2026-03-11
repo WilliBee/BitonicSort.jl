@@ -6,14 +6,14 @@ const BACKEND = get(ENV, "BACKEND") do
     error("Usage: BACKEND=[cuda|metal] julia --project")
 end
 
-if BACKEND == "CUDA"
+if BACKEND == "cuda"
     using CUDA
     const backend = CUDABackend()
 
     @testset "CUDA" begin
         include("correctness.jl")
     end
-elseif BACKEND == "Metal"
+elseif BACKEND == "metal"
     using Metal
     const backend = MetalBackend()
 

@@ -134,7 +134,7 @@ Random.seed!(5)
             @test issorted(Array(values))
         end
 
-        if BACKEND == "CUDA"
+        if BACKEND == "cuda"
             @testset "Float64/Int64" begin
                 values = adapt(backend, randn(Float64, 256))
                 indices = adapt(backend, Int64.(1:256))
