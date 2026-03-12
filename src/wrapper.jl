@@ -1,5 +1,5 @@
 """
-    bitonic_sort!(val_in, idx_in; ascend=true, task_offsets=Int32[])
+    bitonic_sort!(val_in, idx_in; ascend=true, task_offsets=Int64[])
 
 Sort values and indices using bitonic sort network.
 
@@ -12,6 +12,7 @@ Sort values and indices using bitonic sort network.
 
 # Constraints
 - Each task must have ≤ 4096 elements
+- Maximum total elements: ~9.2 quintillion (Int64 max, practical limit is GPU memory)
 
 # Returns
 - `val_in`: Sorted values (modified in-place)
@@ -29,7 +30,7 @@ indices = MtlArray{Int32}(1:256)
 bitonic_sort!(values, indices; ascend=true)
 
 # Sort multiple arrays with different lengths
-task_offsets = Int32[0, 256, 512, 640]  # 3 tasks: 256, 256, 128 elements
+task_offsets = [0, 256, 512, 640]  # 3 tasks: 256, 256, 128 elements
 bitonic_sort!(values, indices; ascend=true, task_offsets=task_offsets)
 ```
 """
@@ -37,12 +38,12 @@ function bitonic_sort!(
     val_in::AbstractArray{ValT},
     idx_in::AbstractArray{IdxT};
     ascend::Bool=true,
-    task_offsets::AbstractVector{Int32}=Int32[]
+    task_offsets::AbstractVector{Int64}=Int64[]
 ) where {ValT, IdxT}
     backend = KA.get_backend(val_in)
 
     # Handle default empty offsets (avoid mutating default argument)
-    offsets = isempty(task_offsets) ? Int32[0, length(val_in)] : task_offsets
+    offsets = isempty(task_offsets) ? [0, length(val_in)] : task_offsets
     offsets_cpu = Array(offsets)
 
     num_tasks = length(offsets_cpu) - 1
@@ -71,7 +72,7 @@ function bitonic_sort!(
             off_input += len
         end
 
-        work_offsets = adapt(backend, Int32.(0:num_tasks) .* Int32(padded_size))
+        work_offsets = adapt(backend, (0:num_tasks) .* padded_size)
     else
         val_work, idx_work = val_in, idx_in
         work_offsets = adapt(backend, offsets)
@@ -79,7 +80,7 @@ function bitonic_sort!(
 
     # Launch kernel
     threads = min(1024, padded_size)
-    kernel! = bitonic_sort_kernel!(backend, threads)
+    kernel! = bitonic_sort_kernel!(backend, (threads, 1))
     kernel!(val_work, idx_work, padded_size, work_offsets, Val(ascend), Val(padded_size); ndrange=(threads, num_tasks))
     KA.synchronize(backend)
 

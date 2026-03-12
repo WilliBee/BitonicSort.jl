@@ -99,7 +99,7 @@ Random.seed!(5)
                 indices = Int32.(1:length(values))
 
                 # Create task offsets
-                task_offsets = vcat([0], cumsum(length.(vals_array))) .|> Int32
+                task_offsets = vcat([0], cumsum(length.(vals_array)))
 
                 # Move to GPU
                 values_gpu = adapt(backend, values)
@@ -119,8 +119,8 @@ Random.seed!(5)
 
                 # Verify indices are correct for each task
                 @test indices_cpu[1:task_offsets[2]] == Int32.(sortperm(original_1))
-                @test indices_cpu[(task_offsets[2] + 1):task_offsets[3]] == task_offsets[2] .+ Int32.(sortperm(original_2))
-                @test indices_cpu[(task_offsets[3] + 1):end] == task_offsets[3] .+ Int32.(sortperm(original_3))
+                @test indices_cpu[(task_offsets[2] + 1):task_offsets[3]] == Int32(task_offsets[2]) .+ Int32.(sortperm(original_2))
+                @test indices_cpu[(task_offsets[3] + 1):end] == Int32(task_offsets[3]) .+ Int32.(sortperm(original_3))
             end
         end
     end
