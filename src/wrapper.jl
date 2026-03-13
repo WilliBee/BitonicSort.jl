@@ -49,20 +49,22 @@ function bitonic_sort!(
 ) where {ValT, IdxT}
     backend = KA.get_backend(val_in)
 
-    # Handle default empty offsets (avoid mutating default argument)
-    offsets = isempty(task_offsets) ? [0, length(val_in)] : task_offsets
-    offsets_cpu = Array(offsets)
-
-    num_tasks = length(offsets_cpu) - 1
-    task_lens = diff(offsets_cpu)
-    max_len = maximum(task_lens)
+    if isempty(task_offsets)
+        num_tasks = 1
+        max_len = length(val_in)
+        needs_pad = !(ispow2(max_len))
+        work_offsets = adapt(backend, Int[])
+    else
+        num_tasks = length(task_offsets) - 1
+        task_lens = diff(task_offsets)
+        max_len = maximum(task_lens)
+        needs_pad = !(ispow2(max_len) && allequal(task_lens))
+        work_offsets = adapt(backend, task_offsets)
+    end
 
     @assert max_len <= 4096 "Input size > 4096 unsupported"
 
     padded_size = clamp(nextpow(2, max_len), 128, 4096)
-    needs_pad = !(ispow2(max_len) && allequal(task_lens))
-
-    work_offsets = adapt(backend, offsets_cpu)
     threads = min(1024, padded_size)
 
     if needs_pad

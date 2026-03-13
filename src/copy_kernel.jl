@@ -24,8 +24,13 @@ at the beginning of each slot. The sort kernel handles sentinel padding during l
     task_id = @index(Group, Cartesian)[2]
     tid = @index(Global, Cartesian)[1]
 
-    task_start = task_offsets[task_id]
-    task_len = task_offsets[task_id + 1] - task_start
+    if isempty(task_offsets)
+        task_start = 0
+        task_len = length(val_in)
+    else
+        task_start = task_offsets[task_id]
+        task_len = task_offsets[task_id + 1] - task_start
+    end
 
     out_start = (task_id - 1) * padded_size
 
@@ -55,8 +60,13 @@ Only copies the valid elements (task_len per task), ignoring padded regions.
     task_id = @index(Group, Cartesian)[2]
     tid = @index(Global, Cartesian)[1]
 
-    task_start = task_offsets[task_id]
-    task_len = task_offsets[task_id + 1] - task_start
+    if isempty(task_offsets)
+        task_start = 0
+        task_len = length(val_out)
+    else
+        task_start = task_offsets[task_id]
+        task_len = task_offsets[task_id + 1] - task_start
+    end
 
     in_start = (task_id - 1) * padded_size
 
