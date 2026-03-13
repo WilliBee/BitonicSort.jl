@@ -7,8 +7,15 @@ Sort values and indices using bitonic sort network.
 - `val_in`: Values to sort (modified in-place, must be 1D array)
 - `idx_in`: Indices to sort alongside values (modified in-place, must be 1D array)
 - `ascend`: Sort direction (true=ascending, false=descending)
-- `task_offsets`: Optional offsets for sorting multiple arrays in one call.
+- `task_offsets`: Optional offsets for sorting multiple independent arrays in one call.
   For N tasks, provide N+1 offsets: [0, len1, len1+len2, ...].
+  Each task represents a separate array to sort.
+
+# Implementation Details
+- For multiple tasks with different lengths, data is rearranged into a padded layout
+  using GPU-side copy kernels (single kernel launch instead of O(num_tasks) CPU copies)
+- Padding is handled with sentinel values that the sort kernel places at the end
+- For single tasks or equal-length power-of-2 tasks, no padding overhead is incurred
 
 # Constraints
 - Each task must have ≤ 4096 elements
@@ -55,44 +62,35 @@ function bitonic_sort!(
     padded_size = clamp(nextpow(2, max_len), 128, 4096)
     needs_pad = !(ispow2(max_len) && allequal(task_lens))
 
-    # Prepare arrays and offsets
+    work_offsets = adapt(backend, offsets_cpu)
+    threads = min(1024, padded_size)
+
     if needs_pad
-        # Create padded array with sentinel values
+        # Create padded arrays
         val_work = similar(val_in, padded_size * num_tasks)
         idx_work = similar(idx_in, padded_size * num_tasks)
-        fill!(val_work, ValT(NaN))
-        fill!(idx_work, zero(IdxT))
 
-        # Copy data into fixed-size slots
-        off_padded, off_input = 1, 1
-        for len in task_lens
-            copyto!(val_work, off_padded, val_in, off_input, len)
-            copyto!(idx_work, off_padded, idx_in, off_input, len)
-            off_padded += padded_size
-            off_input += len
-        end
-
-        work_offsets = adapt(backend, (0:num_tasks) .* padded_size)
+        copy_to_padded_kernel!(backend, (threads, 1))(
+            val_work, idx_work, val_in, idx_in, work_offsets, padded_size;
+            ndrange=(padded_size, num_tasks)
+        )
+        KA.synchronize(backend)
     else
         val_work, idx_work = val_in, idx_in
-        work_offsets = adapt(backend, offsets)
     end
 
-    # Launch kernel
-    threads = min(1024, padded_size)
-    kernel! = bitonic_sort_kernel!(backend, (threads, 1))
-    kernel!(val_work, idx_work, padded_size, work_offsets, Val(ascend), Val(padded_size); ndrange=(threads, num_tasks))
+    bitonic_sort_kernel!(backend, (threads, 1))(
+        val_work, idx_work, padded_size, work_offsets, Val(ascend), Val(padded_size);
+        ndrange=(threads, num_tasks)
+    )
     KA.synchronize(backend)
 
-    # Copy back if needed
     if needs_pad
-        off_padded, off_input = 1, 1
-        for len in task_lens
-            copyto!(val_in, off_input, val_work, off_padded, len)
-            copyto!(idx_in, off_input, idx_work, off_padded, len)
-            off_padded += padded_size
-            off_input += len
-        end
+        copy_from_padded_kernel!(backend, (threads, 1))(
+            val_in, idx_in, val_work, idx_work, work_offsets, padded_size;
+            ndrange=(padded_size, num_tasks)
+        )
+        KA.synchronize(backend)
     end
 
     return val_in, idx_in

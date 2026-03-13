@@ -12,6 +12,7 @@ if BACKEND == "cuda"
 
     @testset "CUDA" begin
         include("correctness.jl")
+        include("test_copy_kernels.jl")
     end
 elseif BACKEND == "metal"
     using Metal
@@ -19,6 +20,7 @@ elseif BACKEND == "metal"
 
     @testset "Metal" begin
         include("correctness.jl")
+        include("test_copy_kernels.jl")
     end
 else
     error("Usage: BACKEND=[cuda|metal] julia --project")

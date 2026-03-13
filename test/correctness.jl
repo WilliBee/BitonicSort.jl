@@ -1,7 +1,7 @@
 using Random
 Random.seed!(5)
 
-@testset "BitonicSort.jl" begin
+@testset "Bitonic sort kernels" begin
     for size in Int32[2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
         @testset "bitonic_sort $size elements" begin
             @testset "Sort $size elements - ascending" begin

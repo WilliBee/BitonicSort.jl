@@ -10,6 +10,7 @@ export bitonic_sort!
 
 include("helpers.jl")
 include("kernels.jl")
+include("copy_kernel.jl")
 include("wrapper.jl")
 
 end
