@@ -56,7 +56,7 @@ function bitonic_sort!(
         work_offsets = adapt(backend, Int[])
     else
         num_tasks = length(task_offsets) - 1
-        task_lens = diff(task_offsets)
+        task_lens = Array(diff(task_offsets))
         max_len = maximum(task_lens)
         needs_pad = !(ispow2(max_len) && allequal(task_lens))
         work_offsets = adapt(backend, task_offsets)
@@ -81,9 +81,12 @@ function bitonic_sort!(
         val_work, idx_work = val_in, idx_in
     end
 
-    bitonic_sort_kernel!(backend, (threads, 1))(
-        val_work, idx_work, padded_size, work_offsets, Val(ascend), Val(padded_size);
-        ndrange=(threads, num_tasks)
+    work_size = needs_pad ? padded_size : max_len
+    work_threads = needs_pad ? threads : min(1024, work_size)
+
+    bitonic_sort_kernel!(backend, (work_threads, 1))(
+        val_work, idx_work, work_size, work_offsets, Val(ascend), Val(work_size);
+        ndrange=(work_threads, num_tasks)
     )
     KA.synchronize(backend)
 
