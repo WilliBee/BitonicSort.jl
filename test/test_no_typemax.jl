@@ -18,7 +18,7 @@
         values = adapt(backend, original)
         indices = adapt(backend, Int32.(1:length(original)))
 
-        bitonic_sort!(values, indices; ascend=true)
+        bitonic_sort!(values, indices; rev=false)
 
         values_result = Array(values)
 
@@ -37,7 +37,7 @@
 
         values = adapt(backend, original)
         indices = adapt(backend, Int32.(1:length(original)))
-        bitonic_sort!(values, indices; ascend=true)
+        bitonic_sort!(values, indices; rev=false)
 
         values_result = Array(values)
 

@@ -9,7 +9,7 @@ end
 @inline convert_nan(val::T, ::Val{ASCEND}) where {T, ASCEND} = val
 
 @inline function cas!(
-    val_cache, idx_cache, pad_tracker, tid, ascend,
+    val_cache, idx_cache, pad_tracker, comp, tid, ascend,
     ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{SEGMENT}
 ) where {ASCEND, SEGMENT, HAS_TYPEMAX}
 
@@ -50,10 +50,21 @@ end
         my_val_s = convert_nan(my_val, Val(ASCEND))
         dst_val_s = convert_nan(dst_val, Val(ASCEND))
 
-        should_swap = if ascend
-            high ? (dst_val_s > my_val_s) : (dst_val_s < my_val_s)
+        # Original working logic for Forward ordering
+        if comp.ord === Base.Order.Forward
+            should_swap = if ascend
+                high ? (dst_val_s > my_val_s) : (dst_val_s < my_val_s)
+            else
+                high ? (dst_val_s < my_val_s) : (dst_val_s > my_val_s)
+            end
         else
-            high ? (dst_val_s < my_val_s) : (dst_val_s > my_val_s)
+            # For custom comparators: use the compare function
+            # compare(a,b) returns true if a < b according to the custom ordering
+            should_swap = if ascend
+                high ? compare(comp, my_val_s, dst_val_s) : compare(comp, dst_val_s, my_val_s)
+            else
+                high ? compare(comp, dst_val_s, my_val_s) : compare(comp, my_val_s, dst_val_s)
+            end
         end
     end
 
@@ -81,7 +92,7 @@ end
 
 
 @inline function bitonic_swap_values!(
-    val_cache, idx_cache, pad_tracker, low_idx, high_idx,
+    val_cache, idx_cache, pad_tracker, comp, low_idx, high_idx,
     ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{INVERT}=Val(false)
 ) where {ASCEND, INVERT, HAS_TYPEMAX}
 
@@ -101,7 +112,14 @@ end
     if !HAS_TYPEMAX && (low_sen || high_sen)
         should_swap = (ASCEND == ascend) ? low_sen : high_sen
     else
-        should_swap = ascend ? (low_val_s > high_val_s) : (low_val_s < high_val_s)
+        # Original working logic for Forward ordering
+        if comp.ord === Base.Order.Forward
+            should_swap = ascend ? (low_val_s > high_val_s) : (low_val_s < high_val_s)
+        else
+            # For custom comparators: use the compare function
+            # compare(a,b) returns true if a < b according to the custom ordering
+            should_swap = ascend ? compare(comp, high_val_s, low_val_s) : compare(comp, low_val_s, high_val_s)
+        end
     end
 
     if should_swap
@@ -114,7 +132,7 @@ end
 end
 
 @inline function sort_N!(
-    val_cache, idx_cache, pad_tracker, tid, segment_ascend,
+    val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend,
     ::Val{2}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
 ) where {ASCEND, WITHFLAG, HAS_TYPEMAX}
 
@@ -122,12 +140,12 @@ end
         segment_is_odd = ((tid - 1) ÷ 2) & 1 |> Bool
         segment_ascend = xor(ASCEND, segment_is_odd)
     end
-    cas!(val_cache, idx_cache, pad_tracker, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(2))
+    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(2))
 end
 
 
 @inline function sort_N!(
-    val_cache, idx_cache, pad_tracker, tid, segment_ascend,
+    val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend,
     ::Val{N}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
 ) where {N, ASCEND, WITHFLAG, HAS_TYPEMAX}
 
@@ -135,8 +153,8 @@ end
         segment_is_odd = ((tid - 1) ÷ N) & 1 |> Bool
         segment_ascend = xor(ASCEND, segment_is_odd)
     end
-    cas!(val_cache, idx_cache, pad_tracker, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(N))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, segment_ascend, Val(N÷2), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(N))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(N÷2), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
 end
 
 # Generate tuple of powers of 2 up to N

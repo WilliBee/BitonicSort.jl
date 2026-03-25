@@ -12,8 +12,9 @@ Adapted from original CUDA C++ [radik](https://github.com/leefige/radik/) implem
 - **Multi-backend support**: CUDA, Metal, ROCm, oneAPI, and more
 - **Batch sorting**: Sort multiple independent arrays in a single kernel launch
 - **In-place sorting** with index tracking
+- **Custom comparators**: Support for `lt`, `by`, `rev`, `order` parameters (like Base.sort!)
 - **NaN handling**: NaN values automatically pushed to the end
-- **Broad type support**: Float16, Float32, Float64, Int16, Int32, Int64
+- **Broad type support**: Float16, Float32, Float64, Int16, Int32, Int64, and custom types
 - **Optimized** for power-of-2 sizes up to 4096 elements
 
 ## Installation
@@ -50,10 +51,17 @@ backend = MetalBackend()
 values = MtlArray{Float32}(randn(256))
 indices = MtlArray{Int32}(1:256)
 
-# Sort in ascending order
-bitonic_sort!(values, indices; ascend=true)
+# Sort in ascending order (default)
+bitonic_sort!(values, indices)
 
-# Result: values are sorted, indices track original positions
+# Sort in descending order
+bitonic_sort!(values, indices; rev=true)
+
+# Sort with custom comparator (e.g., by absolute value)
+bitonic_sort!(values, indices; lt=(a, b) -> abs(a) < abs(b))
+
+# Sort with transformation
+bitonic_sort!(values, indices; by=abs)
 ```
 
 ### Multiple Arrays (Batch Sorting)
@@ -70,20 +78,23 @@ indices = MtlArray{Int32}(1:total_elements)
 task_offsets = [0, len_1, len_1+len_2, total_elements]
 
 # Sort all tasks at once
-bitonic_sort!(values, indices; ascend=true, task_offsets=task_offsets)
+bitonic_sort!(values, indices; task_offsets=task_offsets)
 ```
 
 ## API Reference
 
-### `bitonic_sort!(val_in, idx_in; ascend=true, task_offsets=Int64[])`
+### `bitonic_sort!(val_in, idx_in; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])`
 
-Sort values and indices using bitonic sort network.
+Sort values and indices using bitonic sort network. Compatible with Julia's Base.sort! API.
 
 **Arguments:**
 - `val_in::AbstractArray`: Values to sort (modified in-place, must be 1D)
 - `idx_in::AbstractArray`: Indices to sort alongside values (modified in-place, must be 1D)
-- `ascend::Bool=true`: Sort direction (true=ascending, false=descending)
-- `task_offsets::AbstractVector{Int64}=Int64[]`: Optional offsets for multi-task sorting.
+- `lt=isless`: Less-than comparison function
+- `by=identity`: Transformation function
+- `rev=nothing`: Reverse sort order (true=descending, false=ascending, nothing=default)
+- `order=Base.Order.Forward`: Ordering specification
+- `task_offsets=Int64[]`: Optional offsets for multi-task sorting.
   For N tasks, provide N+1 offsets: `[0, len1, len1+len2, ...]`.
 
 **Constraints:**
@@ -95,10 +106,22 @@ Sort values and indices using bitonic sort network.
 - `val_in`: Sorted values (modified in-place)
 - `idx_in`: Sorted indices (modified in-place)
 
-**Example:**
+**Examples:**
 ```julia
+# Ascending sort (default)
+bitonic_sort!(values, indices)
+
 # Descending sort
-bitonic_sort!(values, indices; ascend=false)
+bitonic_sort!(values, indices; rev=true)
+
+# Custom comparator
+bitonic_sort!(values, indices; lt=(a, b) -> abs(a) < abs(b))
+
+# With transformation
+bitonic_sort!(values, indices; by=abs)
+
+# Batch sorting
+bitonic_sort!(values, indices; task_offsets=[0, 256, 512])
 ```
 
 ## Performance
@@ -121,7 +144,7 @@ Comparison against AcceleratedKernels.merge_sort_by_key! (GPU) and Julia's built
 
 Running benchmarks:
 ```bash
-julia --project=benchmark benchmark/generate.jl
+julia --project=benchmark benchmark/generate_results.jl
 julia --project=benchmark benchmark/plot_results.jl
 ```
 
@@ -136,7 +159,6 @@ BACKEND=cuda julia --project=. -e 'using Pkg; Pkg.test()'
 
 ## TODO
 
-- [ ] Support for custom types with ordering
 - [ ] Native 2D array support (column-wise sorting)
 - [ ] Expand maximum task size beyond 4096 elements
 - [ ] Additional backend-specific optimizations ?

@@ -10,7 +10,7 @@ Random.seed!(5)
                 values = adapt(backend, original)
                 indices = adapt(backend, Int16.(1:size))
 
-                bitonic_sort!(values, indices; ascend=true)
+                bitonic_sort!(values, indices; rev=false)
                 @test Array(values) == sort(original)
                 @test Array(indices) == Int16.(sortperm(original))
             end
@@ -20,7 +20,7 @@ Random.seed!(5)
                 values = adapt(backend, original)
                 indices = adapt(backend, Int16.(1:size))
 
-                bitonic_sort!(values, indices; ascend=false)
+                bitonic_sort!(values, indices; rev=true)
                 @test Array(values) == sort(original, rev=true)
                 @test Array(indices) == Int16.(sortperm(original, rev=true))
             end
@@ -36,7 +36,7 @@ Random.seed!(5)
                 indices = adapt(backend, Int16.(1:size))
 
                 # NaN values are pushed to the end of the array
-                bitonic_sort!(values_gpu, indices; ascend=true)
+                bitonic_sort!(values_gpu, indices; rev=false)
 
                 values_cpu = Array(values_gpu)
                 @test issorted(values_cpu[1:(size - 2)])
@@ -54,7 +54,7 @@ Random.seed!(5)
                 indices = adapt(backend, Int16.(1:size))
 
                 # NaN values are pushed to the end of the array
-                bitonic_sort!(values_gpu, indices; ascend=false)
+                bitonic_sort!(values_gpu, indices; rev=true)
 
                 values_cpu = Array(values_gpu)
                 @test issorted(values_cpu[1:(size - 2)], rev=true)
@@ -71,7 +71,7 @@ Random.seed!(5)
                 indices = adapt(backend, Int16.(collect(1:n)))
                 indices_padded = adapt(backend, vcat(indices, zeros(Int16, size - n)))
 
-                bitonic_sort!(values_padded, indices_padded; ascend=true)
+                bitonic_sort!(values_padded, indices_padded; rev=false)
 
                 values_padded_cpu = Array(values_padded)
                 indices_padded_cpu = Array(indices_padded)
@@ -107,7 +107,7 @@ Random.seed!(5)
                 task_offsets_gpu = adapt(backend, task_offsets)
 
                 # Sort all tasks at once
-                bitonic_sort!(values_gpu, indices_gpu; ascend=true, task_offsets=task_offsets_gpu)
+                bitonic_sort!(values_gpu, indices_gpu; rev=false, task_offsets=task_offsets_gpu)
 
                 values_cpu = Array(values_gpu)
                 indices_cpu = Array(indices_gpu)
@@ -131,7 +131,7 @@ Random.seed!(5)
         indices = adapt(backend, Int16.(1:5))
 
         # Call without comparator (should create Forward comparator internally)
-        bitonic_sort!(values, indices; ascend=true)
+        bitonic_sort!(values, indices; rev=false)
         values_cpu = Array(values)
 
         @test issorted(values_cpu)
@@ -144,7 +144,7 @@ Random.seed!(5)
         indices = adapt(backend, Int16.(1:5))
 
         # Call without comparator (should create Forward comparator internally)
-        bitonic_sort!(values, indices; ascend=false)
+        bitonic_sort!(values, indices; rev=true)
         values_cpu = Array(values)
 
         @test issorted(values_cpu, rev=true)
@@ -156,7 +156,7 @@ Random.seed!(5)
             values = adapt(backend, randn(ValT, 256))
             indices = adapt(backend, IdxT.(1:256))
             
-            bitonic_sort!(values, indices; ascend=true)
+            bitonic_sort!(values, indices; rev=false)
             @test issorted(Array(values))
         end
 
@@ -164,7 +164,7 @@ Random.seed!(5)
             @testset "Float64/Int64" begin
                 values = adapt(backend, randn(Float64, 256))
                 indices = adapt(backend, Int64.(1:256))
-                bitonic_sort!(values, indices; ascend=true)
+                bitonic_sort!(values, indices; rev=false)
                 @test issorted(Array(values))
             end
         end

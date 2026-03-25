@@ -30,7 +30,7 @@ end
 # Try to sort with bitonic_sort!
 println("\n=== Calling bitonic_sort! ===")
 try
-    bitonic_sort!(val_out, idx_out, ascend=true, task_offsets=task_offsets)
+    bitonic_sort!(val_out, idx_out, rev=false, task_offsets=task_offsets)
     synchronize(backend)
     
     println("✓ bitonic_sort! completed without error")

@@ -1,12 +1,15 @@
 """
-    bitonic_sort!(val_in, idx_in; ascend=true, task_offsets=Int64[])
+    bitonic_sort!(val_in, idx_in; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])
 
 Sort values and indices using bitonic sort network.
 
 # Arguments
 - `val_in`: Values to sort (modified in-place, must be 1D array)
 - `idx_in`: Indices to sort alongside values (modified in-place, must be 1D array)
-- `ascend`: Sort direction (true=ascending, false=descending)
+- `lt`: Less-than comparison function (default: `isless`)
+- `by`: Transformation function (default: `identity`)
+- `rev`: Reverse sort order (true=descending, false=ascending, nothing=default)
+- `order`: Ordering specification (default: `Base.Order.Forward`)
 - `task_offsets`: Optional offsets for sorting multiple independent arrays in one call.
   For N tasks, provide N+1 offsets: [0, len1, len1+len2, ...].
   Each task represents a separate array to sort.
@@ -33,21 +36,51 @@ backend = MetalBackend()
 values = MtlArray{Float32}(randn(Float32, 256))
 indices = MtlArray{Int32}(1:256)
 
-# Sort single array
-bitonic_sort!(values, indices; ascend=true)
+# Sort single array (ascending)
+bitonic_sort!(values, indices)
+
+# Sort single array (descending)
+bitonic_sort!(values, indices; rev=true)
+
+# Sort with custom comparator
+bitonic_sort!(values, indices; lt=(a, b) -> abs(a) < abs(b))
+
+# Sort with transformation
+bitonic_sort!(values, indices; by=abs)
 
 # Sort multiple arrays with different lengths
 task_offsets = [0, 256, 512, 640]  # 3 tasks: 256, 256, 128 elements
-bitonic_sort!(values, indices; ascend=true, task_offsets=task_offsets)
+bitonic_sort!(values, indices; task_offsets=task_offsets)
 ```
 """
 function bitonic_sort!(
     val_in::AbstractArray{ValT},
     idx_in::AbstractArray{IdxT};
-    comp = ComparatorWrapper(Base.Order.Forward),
-    ascend::Bool=true,
+    lt=isless,
+    by=identity,
+    rev::Union{Nothing, Bool}=nothing,
+    order::Base.Order.Ordering=Base.Order.Forward,
     task_offsets::AbstractVector{Int64}=Int64[]
 ) where {ValT, IdxT}
+    # Set network direction based on sort order
+    ascend_val = if rev === nothing
+        order !== Base.Order.Reverse
+    else
+        !rev  # rev=true means descending (ascend=false)
+    end
+
+    # BitonicSort uses sentinel values for padding, which need to match sort direction
+    # With ReverseOrdering, sentinels end up in wrong position, so we:
+    # 1. Use network direction (ascend_val) instead of ReverseOrdering
+    # 2. Unwrap ReverseOrdering to use ForwardOrdering with proper lt/by
+
+    # For the comparator, always use Forward ordering and pass rev=nothing
+    # We handle the reversal entirely through ascend_val (network direction)
+    # This prevents Double reversal issues
+    effective_order = (order === Base.Order.Reverse) ? Base.Order.Forward : order
+    ord = Base.Order.ord(lt, by, nothing, effective_order)
+    comp = ComparatorWrapper(ord)
+
     backend = KA.get_backend(val_in)
 
     if isempty(task_offsets)
@@ -88,8 +121,8 @@ function bitonic_sort!(
     has_typemax_param = has_typemax(ValT)
 
     bitonic_sort_kernel!(backend, (threads, 1))(
-        val_work, idx_work, max_len, work_offsets,
-        Val(ascend), Val(has_typemax_param), Val(work_size);
+        val_work, idx_work, max_len, work_offsets, comp,
+        Val(ascend_val), Val(has_typemax_param), Val(work_size);
         ndrange=(work_threads, num_tasks)
     )
     KA.synchronize(backend)

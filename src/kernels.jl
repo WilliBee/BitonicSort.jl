@@ -7,6 +7,7 @@ for size in (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
         idx_in::AbstractArray{IdxT},
         max_len,
         task_offsets,
+        comp::ComparatorWrapper,
         ::Val{ASCEND},
         ::Val{HAS_TYPEMAX},
         ::Val{$size}
@@ -53,7 +54,7 @@ for size in (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
         @synchronize()
 
         # Bitonic sorting network - explicit calls for each power of 2
-        $(Expr(:block, [:(sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val($N), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))) for N in range]...))
+        $(Expr(:block, [:(sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val($N), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))) for N in range]...))
 
         # Write back
         if tid <= valid_len
@@ -68,6 +69,7 @@ end
     idx_in::AbstractArray{IdxT},
     max_len,
     task_offsets,
+    comp::ComparatorWrapper,
     ::Val{ASCEND},
     ::Val{HAS_TYPEMAX},
     ::Val{2048}
@@ -133,34 +135,34 @@ end
     @synchronize()
 
     # Sort first half
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
 
     # Sort second half
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
 
-    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, tid, tid + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
+    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, comp, tid, tid + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
     @synchronize()
 
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
 
     # Write back first half
     if tid <= valid_len
@@ -180,6 +182,7 @@ end
     idx_in::AbstractArray{IdxT},
     max_len,
     task_offsets,
+    comp::ComparatorWrapper,
     ::Val{ASCEND},
     ::Val{HAS_TYPEMAX},
     ::Val{4096}
@@ -232,37 +235,37 @@ end
 
     pos = tid
     @unroll for _ in 1:4
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(16), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(32), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(64), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(128), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(256), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
         pos += 1024
     end
 
-    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, tid, tid + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
+    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, comp, tid, tid + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
     @synchronize()
 
-    sort_N!(val_cache, idx_cache, pad_tracker, tid, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
 
     # Second swap uses INVERTED comparison (!ASCEND)
-    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, tid + 2048, tid + 3072, Val(ASCEND), Val(HAS_TYPEMAX), Val(true))
+    bitonic_swap_values!(val_cache, idx_cache, pad_tracker, comp, tid + 2048, tid + 3072, Val(ASCEND), Val(HAS_TYPEMAX), Val(true))
     @synchronize()
 
     # Sort third and fourth 1024 blocks with !ASCEND
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 2048, !ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
-    sort_N!(val_cache, idx_cache, pad_tracker, tid + 3072, !ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 2048, !ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid + 3072, !ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
 
     # Merge first 2048 elements with last 2048 elements
     pos = tid
     @unroll for _ in 1:2
-        bitonic_swap_values!(val_cache, idx_cache, pad_tracker, pos, pos + 2048, Val(ASCEND), Val(HAS_TYPEMAX))
+        bitonic_swap_values!(val_cache, idx_cache, pad_tracker, comp, pos, pos + 2048, Val(ASCEND), Val(HAS_TYPEMAX))
         pos += 1024
     end
     @synchronize()
@@ -270,11 +273,11 @@ end
     # Final merge: sort each 2048-element pair
     pos = tid
     @unroll for _ in 1:2
-        bitonic_swap_values!(val_cache, idx_cache, pad_tracker, pos, pos + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
+        bitonic_swap_values!(val_cache, idx_cache, pad_tracker, comp, pos, pos + 1024, Val(ASCEND), Val(HAS_TYPEMAX))
         @synchronize()
 
-        sort_N!(val_cache, idx_cache, pad_tracker, pos, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
-        sort_N!(val_cache, idx_cache, pad_tracker, pos + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+        sort_N!(val_cache, idx_cache, pad_tracker, comp, pos + 1024, ASCEND, Val(1024), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
 
         pos += 2048
     end
