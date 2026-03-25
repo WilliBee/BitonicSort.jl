@@ -1,10 +1,11 @@
 module BitonicSort
 
+using Adapt
+using ArgCheck: @argcheck
 using KernelAbstractions: @kernel, @index, @localmem, @synchronize, @inbounds
 import KernelAbstractions as KA
 using KernelAbstractions.Extras: @unroll
 using KernelIntrinsics
-using Adapt
 
 export bitonic_sort!, ComparatorWrapper
 

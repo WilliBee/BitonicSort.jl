@@ -63,7 +63,9 @@ function bitonic_sort!(
     task_offsets::AbstractVector{Int64}=Int64[]
 ) where {ValT, IdxT}
     # Determine if index tracking is enabled (non-empty idx_in array)
-    with_idxin = !isempty(idx_in) && (length(idx_in) == length(val_in))
+    with_idxin = !isempty(idx_in)
+    
+    with_idxin && @argcheck length(idx_in) == length(val_in)
 
     # Set network direction based on sort order
     ascend_val = if rev === nothing
