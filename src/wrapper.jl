@@ -44,6 +44,7 @@ bitonic_sort!(values, indices; ascend=true, task_offsets=task_offsets)
 function bitonic_sort!(
     val_in::AbstractArray{ValT},
     idx_in::AbstractArray{IdxT};
+    comp = ComparatorWrapper(Base.Order.Forward),
     ascend::Bool=true,
     task_offsets::AbstractVector{Int64}=Int64[]
 ) where {ValT, IdxT}
@@ -53,7 +54,7 @@ function bitonic_sort!(
         num_tasks = 1
         max_len = length(val_in)
         needs_pad = !(ispow2(max_len))
-        work_offsets = adapt(backend, Int[])
+        work_offsets = adapt(backend, Int[0, max_len])
     else
         num_tasks = length(task_offsets) - 1
         task_lens = Array(diff(task_offsets))
@@ -84,8 +85,9 @@ function bitonic_sort!(
     work_size = needs_pad ? padded_size : max_len
     work_threads = needs_pad ? threads : min(1024, work_size)
 
+    # Pass the comparator and the correct ascend value
     bitonic_sort_kernel!(backend, (work_threads, 1))(
-        val_work, idx_work, work_size, work_offsets, Val(ascend), Val(work_size);
+        val_work, idx_work, work_size, work_offsets, comp, Val(ascend), Val(work_size);
         ndrange=(work_threads, num_tasks)
     )
     KA.synchronize(backend)

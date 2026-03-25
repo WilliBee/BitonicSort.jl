@@ -19,8 +19,14 @@ elseif BACKEND == "metal"
     const backend = MetalBackend()
 
     @testset "Metal" begin
+        # include("comparator_test.jl")
+        # include("comparator_helpers.jl")
+        # include("comparator_lowlevel.jl")
+        # include("custom_types.jl")
+        # include("test_copy_kernels.jl")
         include("correctness.jl")
-        include("test_copy_kernels.jl")
+        # include("custom_comparators.jl")
+        
     end
 else
     error("Usage: BACKEND=[cuda|metal] julia --project")

@@ -8,21 +8,21 @@ Random.seed!(5)
                 original = randn(Float32, size)
 
                 values = adapt(backend, original)
-                indices = adapt(backend, Int32.(1:size))
+                indices = adapt(backend, Int16.(1:size))
 
                 bitonic_sort!(values, indices; ascend=true)
                 @test Array(values) == sort(original)
-                @test Array(indices) == Int32.(sortperm(original))
+                @test Array(indices) == Int16.(sortperm(original))
             end
             @testset "Sort $size elements - descending" begin
                 original = randn(Float32, size)
 
                 values = adapt(backend, original)
-                indices = adapt(backend, Int32.(1:size))
+                indices = adapt(backend, Int16.(1:size))
 
                 bitonic_sort!(values, indices; ascend=false)
                 @test Array(values) == sort(original, rev=true)
-                @test Array(indices) == Int32.(sortperm(original, rev=true))
+                @test Array(indices) == Int16.(sortperm(original, rev=true))
             end
 
             @testset "Sort with NaN values - ascending" begin
@@ -33,7 +33,7 @@ Random.seed!(5)
                 original = copy(values)
 
                 values_gpu = adapt(backend, values)
-                indices = adapt(backend, Int32.(1:size))
+                indices = adapt(backend, Int16.(1:size))
 
                 # NaN values are pushed to the end of the array
                 bitonic_sort!(values_gpu, indices; ascend=true)
@@ -51,7 +51,7 @@ Random.seed!(5)
                 original = copy(values)
 
                 values_gpu = adapt(backend, values)
-                indices = adapt(backend, Int32.(1:size))
+                indices = adapt(backend, Int16.(1:size))
 
                 # NaN values are pushed to the end of the array
                 bitonic_sort!(values_gpu, indices; ascend=false)
@@ -68,8 +68,8 @@ Random.seed!(5)
                 # Pad to size
                 values_padded = adapt(backend, vcat(values, fill(-Inf32, size - n)))
 
-                indices = adapt(backend, Int32.(collect(1:n)))
-                indices_padded = adapt(backend, vcat(indices, zeros(Int32, size - n)))
+                indices = adapt(backend, Int16.(collect(1:n)))
+                indices_padded = adapt(backend, vcat(indices, zeros(Int16, size - n)))
 
                 bitonic_sort!(values_padded, indices_padded; ascend=true)
 
@@ -78,7 +78,7 @@ Random.seed!(5)
 
                 # Check sorted and indices follow
                 @test issorted(values_padded_cpu[end-n+1:end])
-                @test indices_padded_cpu[end-n+1:end] == Int32.(sortperm(Array(values)))
+                @test indices_padded_cpu[end-n+1:end] == Int16.(sortperm(Array(values)))
             end
 
             @testset "Multiple tasks" begin
@@ -96,7 +96,7 @@ Random.seed!(5)
                 # Concatenate all tasks
                 vals_array = [original_1, original_2, original_3]
                 values = vcat(vals_array...)
-                indices = Int32.(1:length(values))
+                indices = Int16.(1:length(values))
 
                 # Create task offsets
                 task_offsets = vcat([0], cumsum(length.(vals_array)))
@@ -118,11 +118,37 @@ Random.seed!(5)
                 @test issorted(values_cpu[(task_offsets[3] + 1):end])
 
                 # Verify indices are correct for each task
-                @test indices_cpu[1:task_offsets[2]] == Int32.(sortperm(original_1))
-                @test indices_cpu[(task_offsets[2] + 1):task_offsets[3]] == Int32(task_offsets[2]) .+ Int32.(sortperm(original_2))
-                @test indices_cpu[(task_offsets[3] + 1):end] == Int32(task_offsets[3]) .+ Int32.(sortperm(original_3))
+                @test indices_cpu[1:task_offsets[2]] == Int16.(sortperm(original_1))
+                @test indices_cpu[(task_offsets[2] + 1):task_offsets[3]] == Int16(task_offsets[2]) .+ Int16.(sortperm(original_2))
+                @test indices_cpu[(task_offsets[3] + 1):end] == Int16(task_offsets[3]) .+ Int16.(sortperm(original_3))
             end
         end
+    end
+
+    @testset "With padding" begin
+        # Test that the old API still works
+        values = adapt(backend, Float32[3, 1, 4, 1, 5])
+        indices = adapt(backend, Int16.(1:5))
+
+        # Call without comparator (should create Forward comparator internally)
+        bitonic_sort!(values, indices; ascend=true)
+        values_cpu = Array(values)
+
+        @test issorted(values_cpu)
+        @test values_cpu ≈ Float32[1.0f0, 1.0f0, 3.0f0, 4.0f0, 5.0f0]
+    end
+
+    @testset "With padding" begin
+        # Test that the old API still works
+        values = adapt(backend, Float32[3, 1, 4, 1, 5])
+        indices = adapt(backend, Int16.(1:5))
+
+        # Call without comparator (should create Forward comparator internally)
+        bitonic_sort!(values, indices; ascend=false)
+        values_cpu = Array(values)
+
+        @test issorted(values_cpu, rev=true)
+        @test values_cpu ≈ Float32[5.0f0, 4.0f0, 3.0f0, 1.0f0, 1.0f0]
     end
 
     @testset "Type variations" begin
