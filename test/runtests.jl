@@ -11,22 +11,18 @@ if BACKEND == "cuda"
     const backend = CUDABackend()
 
     @testset "CUDA" begin
-        include("correctness.jl")
         include("test_copy_kernels.jl")
+        include("correctness.jl")
+        include("test_no_typemax.jl")
     end
 elseif BACKEND == "metal"
     using Metal
     const backend = MetalBackend()
 
     @testset "Metal" begin
-        # include("comparator_test.jl")
-        # include("comparator_helpers.jl")
-        # include("comparator_lowlevel.jl")
-        # include("custom_types.jl")
-        # include("test_copy_kernels.jl")
+        include("test_copy_kernels.jl")
         include("correctness.jl")
-        # include("custom_comparators.jl")
-        
+        include("test_no_typemax.jl")
     end
 else
     error("Usage: BACKEND=[cuda|metal] julia --project")

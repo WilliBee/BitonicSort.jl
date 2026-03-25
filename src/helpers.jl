@@ -45,7 +45,7 @@ end
     @synchronize()
 
     if !HAS_TYPEMAX && (my_pad || dst_pad)
-            should_swap = (high == (ASCEND == ascend)) ? dst_pad : my_pad
+        should_swap = (high == (ASCEND == ascend)) ? dst_pad : my_pad
     else
         my_val_s = convert_nan(my_val, Val(ASCEND))
         dst_val_s = convert_nan(dst_val, Val(ASCEND))
@@ -81,7 +81,7 @@ end
 
 
 @inline function bitonic_swap_values!(
-    val_cache, idx_cache, pad_tracker, low_idx, high_idx, 
+    val_cache, idx_cache, pad_tracker, low_idx, high_idx,
     ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{INVERT}=Val(false)
 ) where {ASCEND, INVERT, HAS_TYPEMAX}
 
@@ -114,7 +114,7 @@ end
 end
 
 @inline function sort_N!(
-    val_cache, idx_cache, pad_tracker, tid, segment_ascend, 
+    val_cache, idx_cache, pad_tracker, tid, segment_ascend,
     ::Val{2}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
 ) where {ASCEND, WITHFLAG, HAS_TYPEMAX}
 
@@ -125,11 +125,12 @@ end
     cas!(val_cache, idx_cache, pad_tracker, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(2))
 end
 
+
 @inline function sort_N!(
-    val_cache, idx_cache, pad_tracker, tid, segment_ascend, 
+    val_cache, idx_cache, pad_tracker, tid, segment_ascend,
     ::Val{N}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
 ) where {N, ASCEND, WITHFLAG, HAS_TYPEMAX}
-    
+
     if !WITHFLAG
         segment_is_odd = ((tid - 1) ÷ N) & 1 |> Bool
         segment_ascend = xor(ASCEND, segment_is_odd)

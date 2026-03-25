@@ -7,25 +7,28 @@ for size in (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
         idx_in::AbstractArray{IdxT},
         max_len,
         task_offsets,
-        comp::ComparatorWrapper,
         ::Val{ASCEND},
         ::Val{HAS_TYPEMAX},
-        ::Val{$size},
+        ::Val{$size}
     ) where {ValT, IdxT, ASCEND, HAS_TYPEMAX}
 
         # Shared memory for sorting
         val_cache = @localmem ValT ($size,)
         idx_cache = @localmem IdxT ($size,)
-        pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : $size, )
+        pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : $size,)
 
         # Identifiers
         task_id = @index(Group, Cartesian)[2]
-        task_len = task_offsets[task_id + 1] - task_offsets[task_id]
+        task_len = if isempty(task_offsets)
+            max_len
+        else
+            task_offsets[task_id + 1] - task_offsets[task_id]
+        end
 
         tid = @index(Local, Linear)
-        offset = (task_id - 1) * max_len
+        offset = (task_id - 1) * $size
 
-        valid_len = min(task_len, max_len)
+        valid_len = min(task_len, $size)
 
         if HAS_TYPEMAX
             if tid <= valid_len
@@ -35,7 +38,6 @@ for size in (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
             else
                 # Pad with sentinel values
                 @inbounds val_cache[tid] = ASCEND ? typemax(ValT) : typemin(ValT)
-                @inbounds idx_cache[tid] = idx_in[offset + 1]
             end
         else
             if tid <= valid_len
@@ -51,7 +53,6 @@ for size in (2, 4, 8, 16, 32, 64, 128, 256, 512, 1024)
         @synchronize()
 
         # Bitonic sorting network - explicit calls for each power of 2
-        # We can't use @unroll with Val(N) because N becomes a runtime variable
         $(Expr(:block, [:(sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val($N), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))) for N in range]...))
 
         # Write back
@@ -67,7 +68,6 @@ end
     idx_in::AbstractArray{IdxT},
     max_len,
     task_offsets,
-    comp::ComparatorWrapper,
     ::Val{ASCEND},
     ::Val{HAS_TYPEMAX},
     ::Val{2048}
@@ -76,16 +76,20 @@ end
     # Multi-pass approach with 1024 threads
     val_cache = @localmem ValT (2048,)
     idx_cache = @localmem IdxT (2048,)
-    pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : 2048, )
+    pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : 2048,)
 
     # Identifiers
     task_id = @index(Group, Cartesian)[2]
-    task_len = task_offsets[task_id + 1] - task_offsets[task_id]
+    task_len = if isempty(task_offsets)
+        max_len
+    else
+        task_offsets[task_id + 1] - task_offsets[task_id]
+    end
 
     tid = @index(Local, Linear)
-    offset = (task_id - 1) * max_len
+    offset = (task_id - 1) * 2048
 
-    valid_len = min(task_len, max_len)
+    valid_len = min(task_len, 2048)
 
     if HAS_TYPEMAX
         # First half
@@ -96,7 +100,6 @@ end
         else
             # Pad with sentinel values
             @inbounds val_cache[tid] = ASCEND ? typemax(ValT) : typemin(ValT)
-            @inbounds idx_cache[tid] = idx_in[offset + 1]
         end
 
         # Second half
@@ -107,34 +110,29 @@ end
         else
             # Pad with sentinel values
             @inbounds val_cache[tid + 1024] = ASCEND ? typemax(ValT) : typemin(ValT)
-            @inbounds idx_cache[tid + 1024] = idx_in[offset + 1 + 1024]
         end
     else
         # First half
         if tid <= valid_len
-            # Load actual data
             @inbounds val_cache[tid] = val_in[offset + tid]
             @inbounds idx_cache[tid] = idx_in[offset + tid]
             @inbounds pad_tracker[tid] = false
         else
-            # Mark sentinel values
             @inbounds pad_tracker[tid] = true
         end
 
         # Second half
         if (tid + 1024) <= valid_len
-            # Load actual data
             @inbounds val_cache[tid + 1024] = val_in[offset + tid + 1024]
             @inbounds idx_cache[tid + 1024] = idx_in[offset + tid + 1024]
             @inbounds pad_tracker[tid + 1024] = false
         else
-            # Mark sentinel values
             @inbounds pad_tracker[tid + 1024] = true
         end
     end
     @synchronize()
 
-    # Sort first half - explicit calls to avoid runtime Val(N) construction
+    # Sort first half
     sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
     sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
     sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
@@ -146,7 +144,7 @@ end
     sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(512), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
     sort_N!(val_cache, idx_cache, pad_tracker, tid, false, Val(1024), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
 
-    # Sort second half (threads 1-1024 working on positions 1025-2048)
+    # Sort second half
     sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(2), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
     sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(4), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
     sort_N!(val_cache, idx_cache, pad_tracker, tid + 1024, false, Val(8), Val(false), Val(ASCEND), Val(HAS_TYPEMAX))
@@ -182,7 +180,6 @@ end
     idx_in::AbstractArray{IdxT},
     max_len,
     task_offsets,
-    comp::ComparatorWrapper,
     ::Val{ASCEND},
     ::Val{HAS_TYPEMAX},
     ::Val{4096}
@@ -191,19 +188,23 @@ end
     # Multi-pass approach with 1024 threads
     val_cache = @localmem ValT (4096,)
     idx_cache = @localmem IdxT (4096,)
-    pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : 4096, )
+    pad_tracker = @localmem Bool (HAS_TYPEMAX ? 0 : 4096,)
 
     # Identifiers
     task_id = @index(Group, Cartesian)[2]
-    task_len = task_offsets[task_id + 1] - task_offsets[task_id]
+    task_len = if isempty(task_offsets)
+        max_len
+    else
+        task_offsets[task_id + 1] - task_offsets[task_id]
+    end
 
     tid = @index(Local, Linear)
-    offset = (task_id - 1) * max_len
+    offset = (task_id - 1) * 4096
 
-    valid_len = min(task_len, max_len)
+    valid_len = min(task_len, 4096)
 
+    pos = tid
     if HAS_TYPEMAX
-        pos = tid
         @unroll for _ in 1:4
             if pos <= valid_len
                 # Load actual data
@@ -212,20 +213,16 @@ end
             else
                 # Pad with sentinel values
                 @inbounds val_cache[pos] = ASCEND ? typemax(ValT) : typemin(ValT)
-                @inbounds idx_cache[pos] = idx_in[offset + 1]
             end
             pos += 1024
         end
     else
-        pos = tid
         @unroll for _ in 1:4
             if pos <= valid_len
-                # Load actual data
                 @inbounds val_cache[pos] = val_in[offset + pos]
                 @inbounds idx_cache[pos] = idx_in[offset + pos]
                 @inbounds pad_tracker[pos] = false
             else
-                # Mark sentinel values
                 @inbounds pad_tracker[pos] = true
             end
             pos += 1024

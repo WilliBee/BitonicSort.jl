@@ -54,14 +54,14 @@ function bitonic_sort!(
         num_tasks = 1
         max_len = length(val_in)
         needs_pad = !(ispow2(max_len))
-        work_offsets = adapt(backend, Int[0, max_len])
     else
         num_tasks = length(task_offsets) - 1
         task_lens = Array(diff(task_offsets))
         max_len = maximum(task_lens)
         needs_pad = !(ispow2(max_len) && allequal(task_lens))
-        work_offsets = adapt(backend, task_offsets)
     end
+
+    work_offsets = adapt(backend, task_offsets)
 
     @assert max_len <= 4096 "Input size > 4096 unsupported"
 
@@ -87,9 +87,8 @@ function bitonic_sort!(
 
     has_typemax_param = has_typemax(ValT)
 
-    # Pass the comparator and the correct ascend value
-    bitonic_sort_kernel!(backend, (work_threads, 1))(
-        val_work, idx_work, work_size, work_offsets, comp, 
+    bitonic_sort_kernel!(backend, (threads, 1))(
+        val_work, idx_work, max_len, work_offsets,
         Val(ascend), Val(has_typemax_param), Val(work_size);
         ndrange=(work_threads, num_tasks)
     )
