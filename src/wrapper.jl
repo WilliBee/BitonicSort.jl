@@ -85,9 +85,12 @@ function bitonic_sort!(
     work_size = needs_pad ? padded_size : max_len
     work_threads = needs_pad ? threads : min(1024, work_size)
 
+    has_typemax_param = has_typemax(ValT)
+
     # Pass the comparator and the correct ascend value
     bitonic_sort_kernel!(backend, (work_threads, 1))(
-        val_work, idx_work, work_size, work_offsets, comp, Val(ascend), Val(work_size);
+        val_work, idx_work, work_size, work_offsets, comp, 
+        Val(ascend), Val(has_typemax_param), Val(work_size);
         ndrange=(work_threads, num_tasks)
     )
     KA.synchronize(backend)
