@@ -45,7 +45,7 @@ Random.seed!(42)
         task_offsets_gpu = adapt(backend, task_offsets)
 
         copy_kernel! = BitonicSort.copy_to_padded_kernel!(backend, (threads, 1))
-        copy_kernel!(val_padded, idx_padded, vals_gpu, idx_gpu, task_offsets_gpu, padded_size;
+        copy_kernel!(val_padded, idx_padded, vals_gpu, idx_gpu, task_offsets_gpu, padded_size, Val(true);
                     ndrange=(padded_size, num_tasks))
         KernelAbstractions.synchronize(backend)
 
@@ -108,7 +108,7 @@ Random.seed!(42)
         task_offsets_gpu = adapt(backend, task_offsets)
 
         copy_kernel! = BitonicSort.copy_from_padded_kernel!(backend, (threads, 1))
-        copy_kernel!(val_out, idx_out, padded_vals_gpu, padded_idx_gpu, task_offsets_gpu, padded_size;
+        copy_kernel!(val_out, idx_out, padded_vals_gpu, padded_idx_gpu, task_offsets_gpu, padded_size, Val(true);
                     ndrange=(padded_size, num_tasks))
         KernelAbstractions.synchronize(backend)
 

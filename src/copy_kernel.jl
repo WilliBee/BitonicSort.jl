@@ -19,8 +19,9 @@ at the beginning of each slot. The sort kernel handles sentinel padding during l
     val_in::AbstractArray{ValT},
     idx_in::AbstractArray{IdxT},
     task_offsets::AbstractVector{Int64},
-    padded_size::Int
-) where {ValT, IdxT}
+    padded_size::Int,
+    ::Val{WITHIDXIN}
+) where {ValT, IdxT, WITHIDXIN}
     task_id = @index(Group, Cartesian)[2]
     tid = @index(Global, Cartesian)[1]
 
@@ -37,7 +38,9 @@ at the beginning of each slot. The sort kernel handles sentinel padding during l
     if tid <= task_len
         @inbounds begin
             val_padded[out_start + tid] = val_in[task_start + tid]
-            idx_padded[out_start + tid] = idx_in[task_start + tid]
+            if WITHIDXIN
+                idx_padded[out_start + tid] = idx_in[task_start + tid]
+            end
         end
     end
 end
@@ -55,8 +58,9 @@ Only copies the valid elements (task_len per task), ignoring padded regions.
     val_padded::AbstractArray{ValT},
     idx_padded::AbstractArray{IdxT},
     task_offsets::AbstractVector{Int64},
-    padded_size::Int
-) where {ValT, IdxT}
+    padded_size::Int,
+    ::Val{WITHIDXIN}
+) where {ValT, IdxT, WITHIDXIN}
     task_id = @index(Group, Cartesian)[2]
     tid = @index(Global, Cartesian)[1]
 
@@ -73,7 +77,9 @@ Only copies the valid elements (task_len per task), ignoring padded regions.
     if tid <= task_len
         @inbounds begin
             val_out[task_start + tid] = val_padded[in_start + tid]
-            idx_out[task_start + tid] = idx_padded[in_start + tid]
+            if WITHIDXIN
+                idx_out[task_start + tid] = idx_padded[in_start + tid]
+            end
         end
     end
 end

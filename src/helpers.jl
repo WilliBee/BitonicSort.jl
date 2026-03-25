@@ -10,15 +10,17 @@ end
 
 @inline function cas!(
     val_cache, idx_cache, pad_tracker, comp, tid, ascend,
-    ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{SEGMENT}
-) where {ASCEND, SEGMENT, HAS_TYPEMAX}
+    ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{SEGMENT}, ::Val{WITHIDXIN}
+) where {ASCEND, SEGMENT, HAS_TYPEMAX, WITHIDXIN}
 
     stride = SEGMENT ÷ 2
     high = ((tid - 1) ÷ stride) & 1 |> Bool
 
     # Read my value and index from shared memory
     my_val = @inbounds val_cache[tid]
-    my_idx = @inbounds idx_cache[tid]
+    if WITHIDXIN
+        my_idx = @inbounds idx_cache[tid]
+    end
     if !HAS_TYPEMAX
         my_pad = @inbounds pad_tracker[tid]
     end
@@ -28,7 +30,9 @@ end
         # Large segments: use shared memory
         dst = high ? tid - stride : tid + stride
         dst_val = @inbounds val_cache[dst]
-        dst_idx = @inbounds idx_cache[dst]
+        if WITHIDXIN
+            dst_idx = @inbounds idx_cache[dst]
+        end
         if !HAS_TYPEMAX
             dst_pad = @inbounds pad_tracker[dst]
         end
@@ -37,7 +41,9 @@ end
         # @shfl(Xor, val, stride) = thread tid receives val from thread (tid ⊻ stride)
         # This works because stride is always a power of 2 in bitonic sort
         dst_val = @shfl(Xor, my_val, stride)
-        dst_idx = @shfl(Xor, my_idx, stride)
+        if WITHIDXIN
+            dst_idx = @shfl(Xor, my_idx, stride)
+        end
         if !HAS_TYPEMAX
             dst_pad = @shfl(Xor, my_pad, stride)
         end
@@ -70,13 +76,17 @@ end
 
     if should_swap
         @inbounds val_cache[tid] = dst_val
-        @inbounds idx_cache[tid] = dst_idx
+        if WITHIDXIN
+            @inbounds idx_cache[tid] = dst_idx
+        end
         if !HAS_TYPEMAX
             @inbounds pad_tracker[tid] = dst_pad
         end
     else
         @inbounds val_cache[tid] = my_val
-        @inbounds idx_cache[tid] = my_idx
+        if WITHIDXIN
+            @inbounds idx_cache[tid] = my_idx
+        end
         if !HAS_TYPEMAX
             @inbounds pad_tracker[tid] = my_pad
         end
@@ -93,8 +103,8 @@ end
 
 @inline function bitonic_swap_values!(
     val_cache, idx_cache, pad_tracker, comp, low_idx, high_idx,
-    ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{INVERT}=Val(false)
-) where {ASCEND, INVERT, HAS_TYPEMAX}
+    ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{WITHIDXIN}, ::Val{INVERT}=Val(false)
+) where {ASCEND, INVERT, HAS_TYPEMAX, WITHIDXIN}
 
     @inbounds low_val = val_cache[low_idx]
     @inbounds high_val = val_cache[high_idx]
@@ -124,7 +134,9 @@ end
 
     if should_swap
         swap!(val_cache, low_idx, high_idx)
-        swap!(idx_cache, low_idx, high_idx)
+        if WITHIDXIN
+            swap!(idx_cache, low_idx, high_idx)
+        end
         if !HAS_TYPEMAX
             swap!(pad_tracker, low_idx, high_idx)
         end
@@ -133,28 +145,28 @@ end
 
 @inline function sort_N!(
     val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend,
-    ::Val{2}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
-) where {ASCEND, WITHFLAG, HAS_TYPEMAX}
+    ::Val{2}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{WITHIDXIN}
+) where {ASCEND, WITHFLAG, HAS_TYPEMAX, WITHIDXIN}
 
     if !WITHFLAG
         segment_is_odd = ((tid - 1) ÷ 2) & 1 |> Bool
         segment_ascend = xor(ASCEND, segment_is_odd)
     end
-    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(2))
+    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(2), Val(WITHIDXIN))
 end
 
 
 @inline function sort_N!(
     val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend,
-    ::Val{N}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}
-) where {N, ASCEND, WITHFLAG, HAS_TYPEMAX}
+    ::Val{N}, ::Val{WITHFLAG}, ::Val{ASCEND}, ::Val{HAS_TYPEMAX}, ::Val{WITHIDXIN}
+) where {N, ASCEND, WITHFLAG, HAS_TYPEMAX, WITHIDXIN}
 
     if !WITHFLAG
         segment_is_odd = ((tid - 1) ÷ N) & 1 |> Bool
         segment_ascend = xor(ASCEND, segment_is_odd)
     end
-    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(N))
-    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(N÷2), Val(true), Val(ASCEND), Val(HAS_TYPEMAX))
+    cas!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(ASCEND), Val(HAS_TYPEMAX), Val(N), Val(WITHIDXIN))
+    sort_N!(val_cache, idx_cache, pad_tracker, comp, tid, segment_ascend, Val(N÷2), Val(true), Val(ASCEND), Val(HAS_TYPEMAX), Val(WITHIDXIN))
 end
 
 # Generate tuple of powers of 2 up to N

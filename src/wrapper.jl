@@ -55,13 +55,16 @@ bitonic_sort!(values, indices; task_offsets=task_offsets)
 """
 function bitonic_sort!(
     val_in::AbstractArray{ValT},
-    idx_in::AbstractArray{IdxT};
+    idx_in::AbstractArray{IdxT}=similar(val_in, Int32, 0);
     lt=isless,
     by=identity,
     rev::Union{Nothing, Bool}=nothing,
     order::Base.Order.Ordering=Base.Order.Forward,
     task_offsets::AbstractVector{Int64}=Int64[]
 ) where {ValT, IdxT}
+    # Determine if index tracking is enabled (non-empty idx_in array)
+    with_idxin = !isempty(idx_in) && (length(idx_in) == length(val_in))
+
     # Set network direction based on sort order
     ascend_val = if rev === nothing
         order !== Base.Order.Reverse
@@ -104,10 +107,10 @@ function bitonic_sort!(
     if needs_pad
         # Create padded arrays
         val_work = similar(val_in, padded_size * num_tasks)
-        idx_work = similar(idx_in, padded_size * num_tasks)
+        idx_work = with_idxin ? similar(idx_in, padded_size * num_tasks) : similar(val_in, Int32, 0)
 
         copy_to_padded_kernel!(backend, (threads, 1))(
-            val_work, idx_work, val_in, idx_in, work_offsets, padded_size;
+            val_work, idx_work, val_in, idx_in, work_offsets, padded_size, Val(with_idxin);
             ndrange=(padded_size, num_tasks)
         )
         KA.synchronize(backend)
@@ -122,14 +125,14 @@ function bitonic_sort!(
 
     bitonic_sort_kernel!(backend, (threads, 1))(
         val_work, idx_work, max_len, work_offsets, comp,
-        Val(ascend_val), Val(has_typemax_param), Val(work_size);
+        Val(ascend_val), Val(has_typemax_param), Val(with_idxin), Val(work_size);
         ndrange=(work_threads, num_tasks)
     )
     KA.synchronize(backend)
 
     if needs_pad
         copy_from_padded_kernel!(backend, (threads, 1))(
-            val_in, idx_in, val_work, idx_work, work_offsets, padded_size;
+            val_in, idx_in, val_work, idx_work, work_offsets, padded_size, Val(with_idxin);
             ndrange=(padded_size, num_tasks)
         )
         KA.synchronize(backend)

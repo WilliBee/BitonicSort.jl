@@ -81,6 +81,13 @@ Random.seed!(5)
                 @test indices_padded_cpu[end-n+1:end] == Int16.(sortperm(Array(values)))
             end
 
+            @testset "No indices" begin
+                original = randn(Float32, size)
+                values = adapt(backend, original)
+                bitonic_sort!(values)
+                @test Array(values) == sort(original)
+            end
+
             @testset "Multiple tasks" begin
                 # Test sorting 3 separate arrays in one kernel launch
                 len_1 = size
