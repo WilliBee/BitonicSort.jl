@@ -15,6 +15,7 @@ if BACKEND == "cuda"
         include("test_no_typemax.jl")
         include("custom_comparators.jl")
         include("correctness.jl")
+        include("api.jl")
     end
 elseif BACKEND == "metal"
     using Metal
@@ -25,6 +26,7 @@ elseif BACKEND == "metal"
         include("test_no_typemax.jl")
         include("custom_comparators.jl")
         include("correctness.jl")
+        include("api.jl")
     end
 else
     error("Usage: BACKEND=[cuda|metal] julia --project")
