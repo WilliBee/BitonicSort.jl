@@ -9,6 +9,7 @@ Adapted from original CUDA C++ [radik](https://github.com/leefige/radik/) implem
 ## Features
 
 - **Standard Julia API** - `sort`, `sort!`, `sortperm`, `sortperm!`, `sort_by_key` functions compatible with Base
+- **2D array support** - Column-wise and row-wise sorting with `dims` parameter
 - **Backend-agnostic GPU implementation** using [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl) and [KernelIntrinsics.jl](https://github.com/WilliBee/KernelIntrinsics.jl)
 - **Multi-backend support**: CUDA, Metal, ROCm, oneAPI, and more
 - **Batch sorting**: Sort multiple independent arrays in a single kernel launch
@@ -88,6 +89,11 @@ task_offsets = [0, len_1, len_1+len_2, total_elements]
 
 # Sort all tasks at once
 BitonicSort.sort!(values; task_offsets=task_offsets)
+
+# 2D array sorting
+matrix = adapt(backend, Float32[3.0f0 1.0f0 2.0f0; 6.0f0 4.0f0 5.0f0])
+BitonicSort.sort!(matrix; dims=1)  # Sort each column
+BitonicSort.sort!(matrix; dims=2)  # Sort each row
 ```
 
 ### Low-Level API
@@ -107,24 +113,29 @@ bitonic_sort!(values, indices)  # indices becomes [2, 3, 1]
 
 Following [AcceleratedKernels.jl](https://github.com/JuliaGPU/AcceleratedKernels.jl) patterns, these functions are **not exported** to avoid conflicts with Base - use with `BitonicSort.` prefix.
 
-#### `BitonicSort.sort!(v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])`
+#### `BitonicSort.sort!(v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, dims=nothing, task_offsets=Int64[])`
 
-Sort array `v` in-place.
+Sort array `v` in-place using bitonic sort on GPU.
 
 **Arguments:**
-- `v::AbstractArray`: Array to sort (must be GPU array like MtlArray)
+- `v::AbstractArray`: Array to sort (must be a GPU array like MtlArray)
 - `lt=isless`: Less-than comparison function
 - `by=identity`: Transformation function
 - `rev=nothing`: Reverse sort order (true=descending, false=ascending)
 - `order=Base.Order.Forward`: Ordering specification
-- `task_offsets=Int64[]`: Optional offsets for batch sorting multiple independent arrays.
+- `dims=nothing`: Dimension to sort along for 2D arrays (1=columns, 2=rows).
+  Only applies when `v` is a 2D array. Cannot be used with `task_offsets`.
+- `task_offsets=Int64[]`: Optional offsets for batch sorting multiple independent 1D arrays.
   For N tasks, provide N+1 offsets: `[0, len1, len1+len2, ...]`.
   Each task must have ≤ 4096 elements.
+  Cannot be used with `dims` parameter.
   **Output format:** Returns a single contiguous array where each task's sorted elements
   are placed back in their original positions (e.g., with offsets `[0, 256, 512, 640]`,
   elements 1-256 contain sorted task 1, elements 257-512 contain sorted task 2, etc.)
 
 **Returns:** `v` (sorted in-place)
+
+**2D Array Sorting:** When sorting 2D arrays, use `dims=1` for column-wise sorting (efficient) or `dims=2` for row-wise sorting (uses transposition).
 
 ---
 
@@ -139,9 +150,9 @@ Return a sorted copy of `v`. Original array unchanged.
 
 ---
 
-#### `BitonicSort.sort_by_key!(keys, values; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])`
+#### `BitonicSort.sort_by_key!(keys, values; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, dims=nothing, task_offsets=Int64[])`
 
-Sort `keys` in-place and reorder `values` alongside. Both arrays must have same length.
+Sort `keys` in-place and reorder `values` alongside. Both arrays must have same size.
 
 **Arguments:**
 - `keys::AbstractArray`: Keys to sort by (modified in-place)
@@ -150,13 +161,18 @@ Sort `keys` in-place and reorder `values` alongside. Both arrays must have same 
 - `by=identity`: Transformation function
 - `rev=nothing`: Reverse sort order (true=descending, false=ascending)
 - `order=Base.Order.Forward`: Ordering specification
+- `dims=nothing`: Dimension to sort along for 2D arrays (1=columns, 2=rows).
+  Only applies when both arrays are 2D. Cannot be used with `task_offsets`.
 - `task_offsets=Int64[]`: Optional offsets for batch sorting multiple independent key-value pairs.
   For N tasks, provide N+1 offsets: `[0, len1, len1+len2, ...]`.
   Each task must have ≤ 4096 elements.
+  Cannot be used with `dims` parameter.
   **Output format:** Returns single contiguous arrays where each task's sorted elements
   are placed back in their original positions.
 
 **Returns:** `(keys, values)` tuple
+
+**2D Array Sorting:** When sorting 2D arrays, use `dims=1` for column-wise sorting (efficient) or `dims=2` for row-wise sorting (uses transposition).
 
 ---
 
@@ -171,29 +187,34 @@ Return sorted `keys` and reordered `values`. Original arrays unchanged.
 
 ---
 
-#### `BitonicSort.sortperm!(ix, v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])`
+#### `BitonicSort.sortperm!(ix, v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, dims=nothing, task_offsets=Int64[])`
 
 Compute permutation that sorts `v`, storing result in `ix`. Array `v` is modified during computation.
 
 **Arguments:**
-- `ix::AbstractArray`: Pre-allocated permutation array (must be same length as `v`)
+- `ix::AbstractArray`: Pre-allocated permutation array (must be same size as `v`)
 - `v::AbstractArray`: Array to compute permutation for
 - `lt=isless`: Less-than comparison function
 - `by=identity`: Transformation function
 - `rev=nothing`: Reverse sort order (true=descending, false=ascending)
 - `order=Base.Order.Forward`: Ordering specification
+- `dims=nothing`: Dimension to sort along for 2D arrays (1=columns, 2=rows).
+  Only applies when both `v` and `ix` are 2D. Cannot be used with `task_offsets`.
 - `task_offsets=Int64[]`: Optional offsets for batch permutation computation.
   For N tasks, provide N+1 offsets: `[0, len1, len1+len2, ...]`.
   Each task must have ≤ 4096 elements.
+  Cannot be used with `dims` parameter.
   **Output format:** Returns a single contiguous permutation array where each task's
   permutation indices are placed back in their original positions (1-indexed relative
   to each task, not to the global array).
 
 **Returns:** `ix` (the permutation)
 
+**2D Array Sorting:** When sorting 2D arrays, use `dims=1` for column-wise sorting (efficient) or `dims=2` for row-wise sorting (uses transposition).
+
 ---
 
-#### `BitonicSort.sortperm(v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, task_offsets=Int64[])`
+#### `BitonicSort.sortperm(v; lt=isless, by=identity, rev=nothing, order=Base.Order.Forward, dims=nothing, task_offsets=Int64[])`
 
 Return permutation vector that sorts `v`. Original `v` unchanged.
 
@@ -266,9 +287,9 @@ BACKEND=cuda julia --project=. -e 'using Pkg; Pkg.test()'
 
 ## TODO
 
-- [ ] Native 2D array support (column-wise sorting)
 - [ ] Expand maximum task size beyond 4096 elements
 - [ ] Additional backend-specific optimizations ?
+- [ ] More efficient row-wise sorting for 2D arrays (currently uses transpose)
 
 ## References and Acknowledgments
 
