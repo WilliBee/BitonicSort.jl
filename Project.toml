@@ -1,6 +1,6 @@
 name = "BitonicSort"
 uuid = "046256cb-d774-41de-a243-db2e1ebe8eb7"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["William BENG <github.com/WilliBee> and contributors"]
 
 [deps]
