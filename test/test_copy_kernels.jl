@@ -4,23 +4,9 @@ using Adapt
 using Random
 import KernelAbstractions
 
-const BACKEND = get(ENV, "BACKEND") do
-    error("Usage: BACKEND=[cuda|metal] julia --project test/test_copy_kernels.jl")
-end
-
-if BACKEND == "cuda"
-    using CUDA
-    const backend = CUDABackend()
-elseif BACKEND == "metal"
-    using Metal
-    const backend = MetalBackend()
-else
-    error("Unknown backend: $BACKEND (use 'cuda' or 'metal')")
-end
-
 Random.seed!(42)
 
-@testset "Copy Kernels - $BACKEND" begin
+@testset "Copy Kernels - $backend" begin
     @testset "copy_to_padded_kernel!" begin
         # Test diverse task sizes: small, medium, large (>1024), and very large (>2048)
         task_sizes = [5, 100, 1500, 3000, 128, 64, 4096]

@@ -1,0 +1,6 @@
+[deps]
+AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+BitonicSort = "046256cb-d774-41de-a243-db2e1ebe8eb7"
+
+[sources]
+BitonicSort = {path = "../../.."}

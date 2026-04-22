@@ -1,35 +1,44 @@
-using BitonicSort
 using Test
-using Adapt
+using Pkg
+using BitonicSort
+using KernelAbstractions
 
-const BACKEND = get(ENV, "BACKEND") do
-    error("Usage: BACKEND=[cuda|metal] julia --project")
+include("meta_helpers.jl")
+
+TEST_BACKEND = get(ENV, "TEST_BACKEND") do
+    backend_str = has_cuda() ? "cuda" : has_roc() ? "roc" : has_metal() ? "metal" : "unknown"
+    @info "TEST_BACKEND not set, defaulting to $backend_str"
+    backend_str
 end
 
-if BACKEND == "cuda"
+Pkg.activate("test/envs/$TEST_BACKEND")
+Pkg.activate("envs/$TEST_BACKEND") # when running tests
+Pkg.instantiate()
+
+if TEST_BACKEND == "cuda"
     using CUDA
-    const backend = CUDABackend()
-
-    @testset "CUDA" begin
-        include("test_copy_kernels.jl")
-        include("test_no_typemax.jl")
-        include("custom_comparators.jl")
-        include("correctness.jl")
-        include("api.jl")
-        include("2d.jl")
+    if !CUDA.functional()
+        @warn "No CUDA device found — skipping tests"
+        exit(0)
     end
-elseif BACKEND == "metal"
+    backend = CUDABackend()
+    include("general_routine.jl")
+elseif TEST_BACKEND == "roc"
+    using AMDGPU
+    if !AMDGPU.functional()
+        @warn "No AMDGPU device found — skipping tests"
+        exit(0)
+    end
+    backend = ROCBackend()
+    include("general_routine.jl")
+elseif TEST_BACKEND == "metal"
     using Metal
-    const backend = MetalBackend()
-
-    @testset "Metal" begin
-        include("test_copy_kernels.jl")
-        include("test_no_typemax.jl")
-        include("custom_comparators.jl")
-        include("correctness.jl")
-        include("api.jl")
-        include("2d.jl")
+    if !Metal.functional()
+        @warn "No Metal device found — skipping tests"
+        exit(0)
     end
+    backend = MetalBackend()
+    include("general_routine.jl")
 else
-    error("Usage: BACKEND=[cuda|metal] julia --project")
+    error("Unknown backend: $TEST_BACKEND")
 end

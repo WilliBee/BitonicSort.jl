@@ -1,0 +1,6 @@
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+BitonicSort = "046256cb-d774-41de-a243-db2e1ebe8eb7"
+
+[sources]
+BitonicSort = {path = "../../.."}

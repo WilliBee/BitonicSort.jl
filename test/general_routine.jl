@@ -1,0 +1,7 @@
+include("test_copy_kernels.jl")
+include("test_no_typemax.jl")
+include("custom_comparators.jl")
+include("correctness.jl")
+include("api.jl")
+include("2d.jl")
+include("Aqua.jl")

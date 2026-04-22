@@ -1,6 +1,9 @@
 # BitonicSort.jl
 
+<!---
 [![Build Status](https://github.com/WilliBee/BitonicSort.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/WilliBee/BitonicSort.jl/actions/workflows/CI.yml?query=branch%3Amain)
+-->
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 A backend-agnostic GPU sorting library for Julia implementing bitonic sort networks with efficient batch processing.
 
@@ -281,8 +284,14 @@ julia --project=benchmark benchmark/plot_results.jl
 Run the test suite:
 
 ```bash
-BACKEND=metal julia --project=. -e 'using Pkg; Pkg.test()'
-BACKEND=cuda julia --project=. -e 'using Pkg; Pkg.test()'
+TEST_BACKEND=metal julia --project=. -e 'using Pkg; Pkg.test()'
+TEST_BACKEND=cuda julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+Or with auto backend detection, simply:
+
+```bash
+julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
 ## TODO
