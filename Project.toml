@@ -9,9 +9,6 @@ ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 KernelIntrinsics = "f9588fbb-d238-4998-b15a-468e8766d49a"
 
-[sources]
-KernelIntrinsics = {url = "https://github.com/WilliBee/KernelIntrinsics.jl.git"}
-
 [compat]
 Adapt = "4"
 Aqua = "0.8"
