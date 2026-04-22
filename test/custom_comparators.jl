@@ -1,7 +1,6 @@
 using Test
 using Random
 using BitonicSort
-using Metal
 using Adapt
 
 Random.seed!(42)
