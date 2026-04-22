@@ -273,9 +273,11 @@ Comparison against AcceleratedKernels.merge_sort_by_key! (GPU) and Julia's built
   <img src="benchmark/plots/02_multitask_comparison.png" width="49%"/>
 </div>
 
-Running benchmarks:
+Running benchmarks (adapt to your backend):
 ```bash
-julia --project=benchmark benchmark/generate_results.jl
+julia --project=benchmark -e 'using Pkg; Pkg.instantiate()'
+julia --project=benchmark -e 'using Pkg; Pkg.add("Metal")'
+julia --project=benchmark -e 'using Metal; backend=MetalBackend(); include("benchmark/generate_results.jl")'
 julia --project=benchmark benchmark/plot_results.jl
 ```
 

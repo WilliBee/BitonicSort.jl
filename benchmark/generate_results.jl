@@ -30,12 +30,9 @@ using BitonicSort
 using CSV
 using DataFrames
 using KernelAbstractions
-using Metal
 using Random
 
 import KernelAbstractions as KA
-
-const backend = MetalBackend()
 
 # ========================================
 # Configuration
